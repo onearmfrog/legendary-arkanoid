@@ -1,0 +1,189 @@
+<!doctype>
+<html>
+<head>
+	<style>
+		body {color: #ffffff;}
+		#instructions {color: gray;}
+		#test-canvas {background: #000000; position: relative; }
+		#top-info {position: absolute; top: 20px; left: 20px; z-index: 100;}
+	</style>
+</head>
+<body>
+	<span id="top-info">FPS: <span id="fps"></span><br/>No. of balls: <span id="balls-count"></span></span>
+	<canvas id="test-canvas" width="500" height="500"></canvas>
+	<p id="instructions">Press spacebar to add a new ball &nbsp;| &nbsp;Drag the box using the mouse</p>
+</body>
+<script>
+	function testLoop(){
+		test.update();
+		test.draw();
+		setTimeout(function(){
+			testLoop();
+		}, 33.3333);	
+	}
+	function Test(){
+		this.lastLoop = new Date;
+		this.fpsMeter = document.querySelector("#fps");
+		this.ballsCount = document.querySelector("#balls-count");
+
+		this.canvas = document.querySelector("#test-canvas");
+		this.canvas.width = 500;
+		this.canvas.height = 500;
+		this.context = this.canvas.getContext("2d");
+		this.ballArr = [];
+
+		this.drawBlock();
+		this.drawBall();
+
+		document.addEventListener("keypress", this.onSpacebar.bind(this));
+		document.addEventListener("mousedown", this.onMouseDown.bind(this));
+		document.addEventListener("mousemove", this.onMouseMove.bind(this));
+		document.addEventListener("mouseup", this.onMouseUp.bind(this));
+	}
+	Test.prototype = {
+		draw: function(){
+  			this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  			this.drawBalls();
+  			this.block.draw(this.context);
+		},
+		update: function(){
+			var thisLoop = new Date, fps = 1000 / (thisLoop - this.lastLoop);
+	    	this.lastLoop = thisLoop;
+	    	this.fpsMeter.innerHTML = ~~fps;
+	    	this.ballsCount.innerHTML = this.ballArr.length;
+			this.updateBalls();
+		},
+		drawBlock: function(){
+			this.block = new Block();
+			var calcBlockPosX = (this.canvas.width / 2) - (this.block.width / 2),
+			calcBlockPosY = (this.canvas.height / 2) - (this.block.height / 2);
+
+			this.block.x = calcBlockPosX;
+			this.block.y = calcBlockPosY;
+
+			this.context.fillStyle = this.block.color;
+			this.context.fillRect(calcBlockPosX, calcBlockPosY, this.block.width, this.block.height);
+		},
+		drawBall: function(){
+			this.ball = new Ball();
+			this.ball.width = 5;
+			this.ball.height = 5;
+			this.ball.color = "#ffffff";
+			this.ball.x = Math.floor(Math.random() * this.canvas.width);
+			this.ball.y = Math.floor(Math.random() * this.canvas.height);
+			this.ball.vx = Math.floor(Math.random() * 7) + 1;
+			this.ball.vy = Math.floor(Math.random() * 7) + 1;
+			this.ballArr.push(this.ball);
+
+			this.context.fillStyle = this.ball.color;
+			this.context.fillRect(this.ball.x, this.ball.y, this.ball.width, this.ball.height);
+		},
+		onMouseDown: function(e){
+			this.block.startX = e.clientX - this.canvas.offsetLeft;
+			this.block.startY = e.clientY - this.canvas.offsetTop;
+			if (this.block.startX > this.block.x && this.block.startX < this.block.x + this.block.width &&
+				this.block.startY > this.block.y && this.block.startY < this.block.y + this.block.height){
+				console.log("block hit");
+				this.block.drag = true;
+			}
+		},
+		onMouseUp: function(e){
+			this.block.drag = false;
+		},
+		onMouseMove: function(e){
+			console.log("mouse is moving");
+			if (this.block.drag){
+				console.log("start drag");
+				var mouseX = e.clientX,
+		        	mouseY = e.clientY;
+
+		        var dx = mouseX - this.block.startX,
+		        	dy = mouseY - this.block.startY;
+
+		        var block
+
+		        this.block.x += dx;
+		        this.block.y += dy;
+		        //this.block.x + this.block.width += dx;
+		        //this.block.y + this.block.height += dy;
+		        // reset the startXY for next time
+		        this.block.startX = mouseX;
+		        this.block.startY = mouseY;				
+			}
+
+		},
+		drawBalls: function(){
+			var ball;
+			for (var i = 0; i < this.ballArr.length; i++){
+				ball = this.ballArr[i];
+				ball.draw(this.context);
+			}
+		},
+		updateBalls: function(){
+			var ball;
+			for (var i = 0; i < this.ballArr.length; i++){
+				ball = this.ballArr[i];
+				this.checkCollision(ball);
+				ball.update(this.context);
+			}
+		},
+		checkCollision: function(ball){
+			if (ball.x + ball.width >= this.canvas.width || ball.x  + ball.width<= 0){
+				ball.vx = -ball.vx;
+			}
+			if (ball.y + ball.height >= this.canvas.height || ball.y  + ball.height <= 0){
+				ball.vy = -ball.vy;
+			}
+			if (ball.y + ball.height >= this.block.y && ball.y  + ball.height <= this.block.y + this.block.height
+				&& ball.x + ball.width >= this.block.x && ball.x  + ball.width <= this.block.x + this.block.width){
+				ball.vy = -ball.vy;
+			}
+			// if (ball.x + ball.width >= this.block.x && ball.x  + ball.width <= this.block.x + this.block.width){
+			// 	ball.vx = -ball.vx;
+			// }
+		},
+		onSpacebar: function(e){
+			if (e.which == 32) {
+				this.drawBall();
+			}
+		}
+
+	}
+	function Ball(){
+		this.x = 0;
+		this.y = 0;
+		this.height = 5;
+		this.width = 5;
+		this.vx = 0;
+		this.vy = 0;
+		this.color = "#ffffff";
+	};
+	Ball.prototype = {
+		draw: function(context){
+			context.fillRect(this.x, this.y, this.width, this.height);
+		},
+		update: function(){
+			this.x += this.vx;
+			this.y += this.vy;
+		}
+	}
+	function Block(){
+		this.x = 0;
+		this.y = 0;
+		this.width = 150;
+		this.height = 50;
+		this.drag = false;
+		this.color = "#ffffff";
+	};
+	Block.prototype = {
+		draw: function(context){
+			context.fillRect(this.x, this.y, this.width, this.height);
+		},
+		startDrag: function(e, canvas){
+			this.drag = true;
+		}
+	};
+	var test = new Test();
+	testLoop();
+</script>
+</html>
